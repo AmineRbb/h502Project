@@ -9,6 +9,8 @@
 #include<glm/gtc/type_ptr.hpp>
 #include<glm/gtc/matrix_inverse.hpp>
 
+#include <map>
+
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
 #include "camera.h"
@@ -22,6 +24,7 @@ const int height = 800;
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
 
+void loadCubemapFace(const char* file, const GLenum& targetCube);
 
 Camera camera(glm::vec3(1.0, 0.0, -6.0), glm::vec3(0.0, 1.0, 0.0), 90.0);
 
@@ -94,6 +97,44 @@ int main(int argc, char* argv[])
 
 	Shader shader(sourceV, sourceF);
 
+	const std::string sourceVCubeMap = "#version 330 core\n"
+		"in vec3 position; \n"
+		"in vec2 tex_coords; \n"
+		"in vec3 normal; \n"
+
+		//only P and V are necessary
+		"uniform mat4 V; \n"
+		"uniform mat4 P; \n"
+
+		"out vec3 texCoord_v; \n"
+
+		" void main(){ \n"
+		"texCoord_v = position;\n"
+		//remove translation info from view matrix to only keep rotation
+		"mat4 V_no_rot = mat4(mat3(V)) ;\n"
+		"vec4 pos = P * V_no_rot * vec4(position, 1.0); \n"
+		// the positions xyz are divided by w after the vertex shader
+		// the z component is equal to the depth value
+		// we want a z always equal to 1.0 here, so we set z = w!
+		// Remember: z=1.0 is the MAXIMUM depth value ;)
+		"gl_Position = pos.xyww;\n"
+		"\n"
+		"}\n";
+
+	const std::string sourceFCubeMap =
+		"#version 330 core\n"
+		"out vec4 FragColor;\n"
+		"precision mediump float; \n"
+		"uniform samplerCube cubemapSampler; \n"
+		"in vec3 texCoord_v; \n"
+		"void main() { \n"
+		"FragColor = texture(cubemapSampler,texCoord_v); \n"
+		"} \n";
+
+
+	Shader cubeMapShader = Shader(sourceVCubeMap, sourceFCubeMap);
+
+
 	//1. Load the model for 3 types of spheres
 
 	char path1[] = "objet/cube.obj";
@@ -119,6 +160,40 @@ int main(int argc, char* argv[])
 	sphere4.makeObject(shader);
 	sphere4.model = glm::translate(sphere4.model, glm::vec3(-2.3, 2.0, -2.0));
 	sphere4.model = glm::scale(sphere4.model, glm::vec3(0.9, 0.9, 0.9));
+
+
+	char pathCube[] = "objet/cube.obj";
+	Object cubeMap(pathCube);
+	cubeMap.makeObject(cubeMapShader);
+
+	GLuint cubeMapTexture;
+	glGenTextures(1, &cubeMapTexture);
+	glActiveTexture(GL_TEXTURE0);
+	glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
+
+	// texture parameters
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_WRAP_R, GL_CLAMP_TO_EDGE);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_CUBE_MAP, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	//stbi_set_flip_vertically_on_load(true);
+
+	std::string pathToCubeMap = "textures/";
+
+	std::map<std::string, GLenum> facesToLoad = {
+		{pathToCubeMap + "right.png",GL_TEXTURE_CUBE_MAP_POSITIVE_X},
+		{pathToCubeMap + "top.png",GL_TEXTURE_CUBE_MAP_POSITIVE_Y},
+		{pathToCubeMap + "front.png",GL_TEXTURE_CUBE_MAP_POSITIVE_Z},
+		{pathToCubeMap + "left.png",GL_TEXTURE_CUBE_MAP_NEGATIVE_X},
+		{pathToCubeMap + "bottom.png",GL_TEXTURE_CUBE_MAP_NEGATIVE_Y},
+		{pathToCubeMap + "back.png",GL_TEXTURE_CUBE_MAP_NEGATIVE_Z},
+	};
+	//load the six faces
+	for (std::pair<std::string, GLenum> pair : facesToLoad) {
+		loadCubemapFace(pair.first.c_str(), pair.second);
+	}
 
 
 	//2. Choose a position for the light
@@ -187,6 +262,23 @@ int main(int argc, char* argv[])
 		//shader.setMatrix4("itM", glm::inverseTranspose(sphere3.model));
 		sphere4.draw();
 
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
+		cubeMapShader.setInteger("cubemapTexture", 0);
+
+
+		glDepthFunc(GL_LEQUAL);
+		sphere1.draw();
+
+
+		cubeMapShader.use();
+		cubeMapShader.setMatrix4("V", view);
+		cubeMapShader.setMatrix4("P", perspective);
+		cubeMapShader.setInteger("cubemapTexture", 0);
+
+		cubeMap.draw();
+		glDepthFunc(GL_LESS);
+
 		fps(now);
 		glfwSwapBuffers(window);
 	}
@@ -197,6 +289,26 @@ int main(int argc, char* argv[])
 
 	return 0;
 }
+
+void loadCubemapFace(const char* path, const GLenum& targetFace)
+{
+	int imWidth, imHeight, imNrChannels;
+	unsigned char* data = stbi_load(path, &imWidth, &imHeight, &imNrChannels, 0);
+	if (data)
+	{
+
+		glTexImage2D(targetFace, 0, GL_RGB, imWidth, imHeight, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		//glGenerateMipmap(targetFace);
+	}
+	else {
+		std::cout << "Failed to Load texture" << std::endl;
+		const char* reason = stbi_failure_reason();
+		std::cout << reason << std::endl;
+	}
+	stbi_image_free(data);
+}
+
+
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {

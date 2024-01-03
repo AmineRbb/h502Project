@@ -9,9 +9,8 @@ C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProje
 C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\object.h(129,41): warning C4244: 'argument' : conversion de 'float' en 'const unsigned __int64', perte possible de données
 C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\object.h(130,43): warning C4244: 'argument' : conversion de 'float' en 'const unsigned __int64', perte possible de données
 C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\object.h(141,30): warning C4267: '=' : conversion de 'size_t' en 'int', perte possible de données
-C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\main.cpp(214,40): warning C4305: 'argument' : troncation de 'double' à 'float'
-C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\main.cpp(216,41): warning C4305: 'argument' : troncation de 'double' à 'float'
-C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\main.cpp(219,43): warning C4305: 'argument' : troncation de 'double' à 'float'
-C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\main.cpp(221,44): warning C4305: 'argument' : troncation de 'double' à 'float'
-LINK : warning LNK4098: conflit entre la bibliothèque par défaut 'MSVCRT' et les autres bibliothèques ; utilisez /NODEFAULTLIB:library
+C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\main.cpp(326,40): warning C4305: 'argument' : troncation de 'double' à 'float'
+C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\main.cpp(328,41): warning C4305: 'argument' : troncation de 'double' à 'float'
+C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\main.cpp(331,43): warning C4305: 'argument' : troncation de 'double' à 'float'
+C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\FinalProjetV1\main.cpp(333,44): warning C4305: 'argument' : troncation de 'double' à 'float'
   FinalProjetV1.vcxproj -> C:\Users\amine\OneDrive\Documents\Devoirs\ULB\INFOH502\TheTrueProject\FinalProjetV1\x64\Debug\FinalProjetV1.exe
