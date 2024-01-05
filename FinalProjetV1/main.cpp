@@ -9,6 +9,10 @@
 #include<glm/gtc/type_ptr.hpp>
 #include<glm/gtc/matrix_inverse.hpp>
 
+#include <irrKlang.h>
+using namespace irrklang;
+#pragma comment(lib, "irrKlang.lib")
+
 #include <map>
 
 #define STB_IMAGE_IMPLEMENTATION
@@ -23,14 +27,24 @@ const int height = 800;
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void processInput(GLFWwindow* window);
-
 void loadCubemapFace(const char* file, const GLenum& targetCube);
+Object createObject(const char* path, const glm::vec3& translation, const glm::vec3& scale, Shader& shader);
+GLuint loadTexture(const char* path, GLenum textureUnit);
 
 Camera camera(glm::vec3(1.0, 0.0, -6.0), glm::vec3(0.0, 1.0, 0.0), 90.0);
 
-
+ 
 int main(int argc, char* argv[])
 {
+
+	ISoundEngine* SoundEngine = createIrrKlangDevice();
+	if (!SoundEngine)
+	{
+		throw std::runtime_error("SONNDENGINE ERROR\n");
+	}
+	SoundEngine->play2D("musics/itsMeMario!.mp3", false);
+
+
 	//Boilerplate
 	//Create the OpenGL context 
 	if (!glfwInit()) {
@@ -65,8 +79,9 @@ int main(int argc, char* argv[])
 	const std::string sourceV = "#version 330 core\n"
 		"in vec3 position; \n"
 		"in vec2 tex_coord; \n"
+		"out vec2 v_tex; \n"
 		"in vec3 normal; \n"
-
+		"uniform int textureType;\n"
 		"out vec3 v_diffuse; \n"
 
 		"uniform mat4 M; \n"
@@ -76,6 +91,12 @@ int main(int argc, char* argv[])
 		"uniform vec3 u_light_pos; \n"
 
 		" void main(){ \n"
+
+		"   v_tex = tex_coord;\n"
+		"   if (textureType == 0) {\n"  // Vérifiez le type de texture (1 pour l'herbe)
+		"       v_tex = tex_coord * 10.0;\n" // Divisez les coordonnées de texture par 5.0 pour l'herbe
+		"   }\n"
+
 		"vec4 frag_coord = M*vec4(position, 1.0);"
 		"gl_Position = P*V*frag_coord;\n"
 		//3. transform correctly the normals
@@ -89,9 +110,13 @@ int main(int argc, char* argv[])
 		"out vec4 FragColor;"
 		"precision mediump float; \n"
 		"in vec3 v_diffuse; \n"
+		"uniform sampler2D ourTexture; \n"
+		"in vec2 v_tex; \n"
 
 		"void main() { \n"
-		"FragColor = vec4(v_diffuse, 1.0); \n"
+		"   vec4 texColor = texture(ourTexture, v_tex); \n"
+		"   vec3 finalColor = texColor.rgb;\n" //* v_diffuse; \n"
+		"   FragColor = vec4(finalColor, texColor.a); \n"
 		"} \n";
 
 
@@ -101,7 +126,7 @@ int main(int argc, char* argv[])
 		"in vec3 position; \n"
 		"in vec2 tex_coords; \n"
 		"in vec3 normal; \n"
-
+		
 		//only P and V are necessary
 		"uniform mat4 V; \n"
 		"uniform mat4 P; \n"
@@ -135,35 +160,38 @@ int main(int argc, char* argv[])
 	Shader cubeMapShader = Shader(sourceVCubeMap, sourceFCubeMap);
 
 
-	//1. Load the model for 3 types of spheres
+	//1. Create Models
 
 	char path1[] = "objet/cube.obj";
 	char path2[] = "objet/mario_mushroom.obj";
-	char path4[] = "objet/mario_stars.obj";
-
-	Object sphere1(path1);
-	sphere1.makeObject(shader);
-	sphere1.model = glm::translate(sphere1.model, glm::vec3(2.3, 0.0, 0.0));
-	sphere1.model = glm::scale(sphere1.model, glm::vec3(0.9, 0.9, 0.9));
-
-	Object sphere2(path2);
-	sphere2.makeObject(shader);
-	sphere2.model = glm::translate(sphere2.model, glm::vec3(0.0, 0.0, 0.0));
-	sphere2.model = glm::scale(sphere2.model, glm::vec3(0.3, 0.3, 0.3));
-
-	Object sphere3(path1);
-	sphere3.makeObject(shader);
-	sphere3.model = glm::translate(sphere3.model, glm::vec3(-2.3, 0.0, -0.0));
-	sphere3.model = glm::scale(sphere3.model, glm::vec3(0.9, 0.9, 0.9));
-
-	Object sphere4(path4);
-	sphere4.makeObject(shader);
-	sphere4.model = glm::translate(sphere4.model, glm::vec3(-2.3, 2.0, -2.0));
-	sphere4.model = glm::scale(sphere4.model, glm::vec3(0.9, 0.9, 0.9));
+	char path4[] = "objet/star.obj";
+	char path3[] = "objet/pipe.obj";
 
 
-	char pathCube[] = "objet/cube.obj";
-	Object cubeMap(pathCube);
+	Object bloc1 = createObject(path1, glm::vec3(2.0, 0.0, 4.0), glm::vec3(0.9, 0.9, 0.9), shader);
+	Object bloc2 = createObject(path1, glm::vec3(4.0, 0.0, 4.0), glm::vec3(0.9, 0.9, 0.9), shader);
+	Object bloc3 = createObject(path1, glm::vec3(6.0, 0.0, 4.0), glm::vec3(0.9, 0.9, 0.9), shader);
+	Object bloc4 = createObject(path1, glm::vec3(6.0, 2.0, 4.0), glm::vec3(0.9, 0.9, 0.9), shader);
+
+	Object blocInterro1 = createObject(path1, glm::vec3(-4.0, 4.0, -3.0), glm::vec3(0.9, 0.9, 0.9), shader);
+	Object blocInterro2 = createObject(path1, glm::vec3(4.0, 4.0, 6.0), glm::vec3(0.9, 0.9, 0.9), shader);
+
+	Object blocStone1 = createObject(path1, glm::vec3(2.3, 0.0, 0.0), glm::vec3(0.9, 0.9, 0.9), shader);
+	Object blocStone2 = createObject(path1, glm::vec3(2.3, 0.0, 0.0), glm::vec3(0.9, 0.9, 0.9), shader);
+	Object blocStone3 = createObject(path1, glm::vec3(2.3, 0.0, 0.0), glm::vec3(0.9, 0.9, 0.9), shader);
+	Object blocStone4 = createObject(path1, glm::vec3(2.3, 0.0, 0.0), glm::vec3(0.9, 0.9, 0.9), shader);
+	Object blocStone5 = createObject(path1, glm::vec3(2.3, 0.0, 0.0), glm::vec3(0.9, 0.9, 0.9), shader);
+
+	Object pipe = createObject(path3, glm::vec3(2.3, 0.0, 0.0), glm::vec3(0.01, 0.01, 0.01), shader);
+
+	Object mushroom = createObject(path2, glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.3, 0.3, 0.3), shader);
+
+	Object star = createObject(path4, glm::vec3(-2.3, 3.5, -2.0), glm::vec3(0.5, 0.5, 0.5), shader);
+	Object ground = createObject(path1, glm::vec3(0.0, -1.0, 0.0), glm::vec3(10.0, 0.1, 10.0), shader);
+
+	// CubeMap
+
+	Object cubeMap(path1);
 	cubeMap.makeObject(cubeMapShader);
 
 	GLuint cubeMapTexture;
@@ -198,7 +226,9 @@ int main(int argc, char* argv[])
 
 	//2. Choose a position for the light
 	const glm::vec3 light_pos = glm::vec3(0.5, 0.5, -0.7);
-
+	const glm::vec3 light_pos2 = glm::vec3(-2.3, 5.5, -2.0);
+	const glm::vec3 light_pos3 = glm::vec3(-2.7, 5.7, -2.2);
+	const glm::vec3 light_pos4 = glm::vec3(-2.3, 5.3, -1.8);
 
 	double prev = 0;
 	int deltaFrame = 0;
@@ -216,11 +246,27 @@ int main(int argc, char* argv[])
 
 
 
+	//////TEXTURE//////////
+	GLuint tGround = loadTexture("textures/grass.jpg", GL_TEXTURE0);
+	GLuint tStar = loadTexture("textures/star.jpg", GL_TEXTURE1);
+	GLuint tMushroom = loadTexture("textures/mushroom.jpg", GL_TEXTURE2);
+	GLuint tBloc = loadTexture("textures/bloc.jpg", GL_TEXTURE3);
+	GLuint tInterro = loadTexture("textures/blocItem.jpg", GL_TEXTURE4);
+	GLuint tStone = loadTexture("textures/blocStone.jpg", GL_TEXTURE5);
 
+	GLuint texture = loadTexture("textures/grass.jpg", GL_TEXTURE0);
+	GLuint texture2 = loadTexture("textures/star.jpg", GL_TEXTURE1);
+	GLuint texture3 = loadTexture("textures/mushroom.jpg", GL_TEXTURE2);
 
 
 	glm::mat4 view = camera.GetViewMatrix();
 	glm::mat4 perspective = camera.GetProjectionMatrix();
+
+	double timeValue = 0.0;
+	bool startSong = false;
+
+	vec3df soundPosition(0.0f, 0.0f, 0.0f);
+	bool isMusicPlaying = false;
 
 
 	//Rendering
@@ -234,42 +280,114 @@ int main(int argc, char* argv[])
 		glClearColor(0.5f, 0.5f, 0.99f, 1.0f);
 		glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
+		if (timeValue > 3.0 && startSong==false)
+		{
+			SoundEngine->play2D("musics/Mario64TitleTheme.mp3", true);
+			startSong = true;
+			isMusicPlaying = true;
+		}
+
+		if (isMusicPlaying) {
+			// Récupérer la position actuelle de la caméra
+			vec3df listenerPosition(camera.Position.x, camera.Position.y, camera.Position.z);
+
+			// Calculer la distance entre la caméra et le point du son
+			float distance = listenerPosition.getDistanceFrom(soundPosition);
+
+			// Ajuster la puissance sonore en fonction de la distance
+			float minDistance = 5.0f;  // Distance à laquelle le son sera entendu à son volume maximal
+			float maxDistance = 30.0f; // Distance à laquelle le son sera entendu au volume minimal
+			float volume = 1.0f - (distance - minDistance) / (maxDistance - minDistance);
+
+			// Limiter la plage du volume entre 0.0 et 1.0
+			volume = std::max(0.0f, std::min(1.0f, volume));
+
+			// Appliquer le volume au son en cours de lecture
+			SoundEngine->setSoundVolume(volume);
+
+		}
 
 		//2. Use the shader Class to send the relevant uniform
 		shader.use();
+		glBindTexture(GL_TEXTURE_2D, tMushroom);
+		shader.setInteger("textureType", 3);
+		shader.setInteger("ourTexture", 0);
+		shader.setMatrix4("M", mushroom.model);
+		//shader.setMatrix4("itM", glm::inverseTranspose(sphere2.model));
+		mushroom.draw();
+ 
+		glBindTexture(GL_TEXTURE_2D, tBloc);
+		shader.setInteger("textureType", 2);
+		shader.setInteger("ourTexture", 0);
 
-		shader.setMatrix4("M", sphere1.model);
+		shader.setMatrix4("M", bloc1.model);
 		shader.setMatrix4("V", view);
 		shader.setMatrix4("P", perspective);
 		shader.setVector3f("u_light_pos", light_pos);
+		
+		glDrawArrays(GL_TRIANGLES, 0, 3);
 
-		glm::mat4 itM = glm::inverseTranspose(sphere1.model);
+		glm::mat4 itM = glm::inverseTranspose(bloc1.model);
 		shader.setMatrix4("itM", itM);
-		sphere1.draw();
+		bloc1.draw();
 
-		shader.setMatrix4("M", sphere2.model);
-		//shader.setMatrix4("itM", glm::inverseTranspose(sphere2.model));
-		sphere2.draw();
+		shader.setMatrix4("M", bloc2.model);
+		bloc2.draw();
 
-		shader.setMatrix4("M", sphere3.model);
+		shader.setMatrix4("M", bloc3.model);
+		bloc3.draw();
+
+		shader.setMatrix4("M", bloc4.model);
 		//shader.setMatrix4("itM", glm::inverseTranspose(sphere3.model));
-		sphere3.draw();
+		bloc4.draw();
 
-		sphere4.model = glm::translate(sphere4.model, glm::vec3(0.0f, -0.0f, 0.0f));
-		sphere4.model = glm::rotate(sphere4.model, (float)0.05f, glm::vec3(0.0f, 1.0f, 0.0f));
-
-		shader.setMatrix4("M", sphere4.model);
-		//shader.setMatrix4("itM", glm::inverseTranspose(sphere3.model));
-		sphere4.draw();
 
 		glActiveTexture(GL_TEXTURE0);
-		glBindTexture(GL_TEXTURE_CUBE_MAP, cubeMapTexture);
-		cubeMapShader.setInteger("cubemapTexture", 0);
+		glBindTexture(GL_TEXTURE_2D, tInterro);
+		shader.setInteger("textureType",4); // 1 pour l'herbe
+		shader.setInteger("ourTexture", 0);
+
+		shader.setMatrix4("M", blocInterro1.model);
+		//shader.setMatrix4("itM", glm::inverseTranspose(sphere3.model));
+		blocInterro1.draw();
+		shader.setMatrix4("M", blocInterro2.model);
+		//shader.setMatrix4("itM", glm::inverseTranspose(sphere3.model));
+		blocInterro2.draw();
+
+		double deltaTime = now - prev;
+		timeValue += deltaTime;  // Mettre à jour le temps
+		prev = now;
+		star.model = glm::translate(star.model, glm::vec3(0.0f, 0.05f * sin(3.0 * timeValue), 0.0f));
+		star.model = glm::rotate(star.model, (float)0.05f, glm::vec3(0.0f, 1.0f, 0.0f));
+
+		glBindTexture(GL_TEXTURE_2D, tStar);
+		shader.setInteger("textureType", 1);
+		shader.setInteger("ourTexture", 0);
+		shader.setMatrix4("M", star.model);
+		//shader.setMatrix4("itM", glm::inverseTranspose(sphere3.model));
+		shader.setVector3f("u_light_pos", light_pos2);
+		shader.setVector3f("u_light_pos", light_pos3);
+		shader.setVector3f("u_light_pos", light_pos4);
+		star.draw();
+
+		glBindTexture(GL_TEXTURE_2D, tStar);
+		shader.setInteger("textureType", 1);
+		shader.setInteger("ourTexture", 0);
+		shader.setMatrix4("M", pipe.model);
+		pipe.draw();
+
+		glActiveTexture(GL_TEXTURE0);
+		glBindTexture(GL_TEXTURE_2D, tGround);
+		shader.setInteger("textureType", 0); // 1 pour l'herbe
+		shader.setInteger("ourTexture", 0);
+
+		shader.setMatrix4("M", ground.model);
+		//shader.setMatrix4("itM", glm::inverseTranspose(sphere3.model));
+		ground.draw();
 
 
 		glDepthFunc(GL_LEQUAL);
-		sphere1.draw();
-
+		bloc1.draw();
 
 		cubeMapShader.use();
 		cubeMapShader.setMatrix4("V", view);
@@ -286,7 +404,6 @@ int main(int argc, char* argv[])
 	//clean up ressource
 	glfwDestroyWindow(window);
 	glfwTerminate();
-
 	return 0;
 }
 
@@ -309,6 +426,47 @@ void loadCubemapFace(const char* path, const GLenum& targetFace)
 }
 
 
+Object createObject(const char* path, const glm::vec3& translation, const glm::vec3& scale, Shader& shader)
+{
+	Object obj(path);
+	obj.makeObject(shader);
+	obj.model = glm::translate(obj.model, translation);
+	obj.model = glm::scale(obj.model, scale);
+	return obj;
+}
+
+GLuint loadTexture(const char* path, GLenum textureUnit)
+{
+	GLuint texture;
+	glGenTextures(1, &texture);
+	glActiveTexture(textureUnit);
+	glBindTexture(GL_TEXTURE_2D, texture);
+
+	// set the texture wrapping parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	// set texture filtering parameters
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+	// load image, create texture and generate mipmaps
+	stbi_set_flip_vertically_on_load(true);
+	int width, height, nrChannels;
+	unsigned char* data = stbi_load(path, &width, &height, &nrChannels, 0);
+
+	if (data)
+	{
+		glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+		glGenerateMipmap(GL_TEXTURE_2D);
+	}
+	else
+	{
+		std::cout << "Failed to load texture: " << path << std::endl;
+	}
+
+	stbi_image_free(data);
+	return texture;
+}
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height)
 {
@@ -344,5 +502,3 @@ void processInput(GLFWwindow* window) {
 
 
 }
-
-
